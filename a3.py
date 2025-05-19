@@ -8,7 +8,7 @@
 # AUDRES6@UCI.EDU
 # 32241248
 
-from ds_messenger import DirectMessenger
+from ds_messenger import DirectMessenger, DirectMessage
 
 def main():
     username = input("Enter your username: ")
@@ -22,8 +22,16 @@ def main():
             break
         recipient = input("enter recipient: ")
         direct_messenger.send(msg, recipient)
-        resp = direct_messenger.retrieve_all()
-        print(resp)
+        #each object in msg list is an object of DirectMessage
+        msg_list = direct_messenger.retrieve_all()
+        for msg in msg_list:
+            #receiving a message
+            if msg.sender != None:
+                print(f"Message from {msg.sender}: {msg.message}")
+            #sending a message 
+            else:
+                print(f"Sent to {msg.recipient}: {msg.message}")
+
         #direct_messenger.retrieve_new()
 
 if __name__=="__main__":

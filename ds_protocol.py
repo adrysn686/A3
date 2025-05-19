@@ -24,7 +24,7 @@ def extract_json(json_msg:str) -> DSPResponse:
     json_obj = json.loads(json_msg)
     response = json_obj['response']
     message_type = response['type']
-    msg = response['message']
+    msg = response.get('message', '')
     token = response.get('token')
     messages = response.get('messages', [])
 
