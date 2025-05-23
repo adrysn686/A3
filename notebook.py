@@ -99,7 +99,10 @@ class Notebook:
         adds messages with the sender and the message 
         '''
         self._messages.append((sender, message))
-        self._contacts.add(sender)
+        #self._contacts.add(sender)
+    
+    def add_contact(self, contact):
+        self._contacts.add(contact)
     
     def fetch_messages(self, contact):
         '''
