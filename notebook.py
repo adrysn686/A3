@@ -79,7 +79,7 @@ class Diary(dict):
 class Notebook:
     """Notebook is a class that can be used to manage a diary notebook."""
 
-    def __init__(self, username: str, password: str, bio: str):
+    def __init__(self, username: str, password: str):
         """Creates a new Notebook object. 
         
         Args:
@@ -89,10 +89,32 @@ class Notebook:
         """
         self.username = username 
         self.password = password 
-        self.bio = bio 
+        #self.bio = bio 
         self._diaries = []
+        self._contacts = set()
+        self._messages = [] # a list of tuples contaning the sender and message 
     
-
+    def add_message(self, sender:str, message:str) -> None:
+        '''
+        adds messages with the sender and the message 
+        '''
+        self._messages.append((sender, message))
+        self._contacts.add(sender)
+    
+    def fetch_messages(self, contact):
+        '''
+        get existing messages from local device
+        '''
+        message_lst = []
+        for messages in self._messages:
+            sender = messages[0]
+            if sender == contact:
+                message_lst.append(messages[1])
+        return message_lst
+    
+    def get_contacts(self):
+        return self._contacts
+    
     def add_diary(self, diary: Diary) -> None:
         """Accepts a Diary object as parameter and appends it to the diary list. Diaries 
         are stored in a list object in the order they are added. So if multiple Diary objects 
@@ -136,8 +158,7 @@ class Notebook:
         Raises NotebookFileError, IncorrectNotebookError
         """
         p = Path(path)
-
-        if p.exists() and p.suffix == '.json':
+        if p.parent.exists() and p.suffix == '.json':
             try:
                 f = open(p, 'w')
                 json.dump(self.__dict__, f, indent=4)
@@ -146,6 +167,8 @@ class Notebook:
                 raise NotebookFileError("Error while attempting to process the notebook file.", ex)
         else:
             raise NotebookFileError("Invalid notebook file path or type")
+        
+
 
     def load(self, path: str) -> None:
         """
@@ -168,7 +191,7 @@ class Notebook:
                 obj = json.load(f)
                 self.username = obj['username']
                 self.password = obj['password']
-                self.bio = obj['bio']
+                #self.bio = obj['bio']
                 for diary_obj in obj['_diaries']:
                     diary = Diary(diary_obj['entry'], diary_obj['timestamp'])
                     self._diaries.append(diary)

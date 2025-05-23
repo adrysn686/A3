@@ -62,10 +62,28 @@ class DirectMessenger:
   def retrieve_new(self) -> list:
     # must return a list of DirectMessage objects containing all new messages
     msg = fetch_json(self.token, "unread")
-    print(msg)
     self.send_file.write(msg + '\r\n')
     self.send_file.flush()
-    return 
+    resp = self.recv_file.readline() 
+    resp = self.recv_file.readline() 
+    parsed_json = extract_json(resp)
+    
+    message_lst = []
+    #parsed_json.messages is a list of message data dictionaries 
+
+    for msg_data in parsed_json.messages:
+      direct_msg = DirectMessage()
+      direct_msg.message = msg_data.get('message', '')
+      direct_msg.timestamp = msg_data.get('timestamp', 0)
+
+      if "recipient" in msg_data:
+        direct_msg.recipient = msg_data.get('recipient', '')
+      else:
+        direct_msg.sender = msg_data['from']
+
+      message_lst.append(direct_msg)
+    
+    return message_lst
  
   def retrieve_all(self) -> list:
     # must return a list of DirectMessage objects containing all messages
