@@ -91,7 +91,7 @@ class Notebook:
         self.password = password 
         #self.bio = bio 
         self._diaries = []
-        self._contacts = set()
+        self._contacts = []
         self._messages = [] # a list of tuples contaning the sender and message 
     
     def add_message(self, sender:str, message:str) -> None:
@@ -102,7 +102,7 @@ class Notebook:
         #self._contacts.add(sender)
     
     def add_contact(self, contact):
-        self._contacts.add(contact)
+        self._contacts.append(contact)
     
     def fetch_messages(self, contact):
         '''

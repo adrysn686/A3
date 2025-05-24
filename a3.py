@@ -111,6 +111,7 @@ class Footer(tk.Frame):
         # You must implement this.
         # Here you must configure the button to bind its click to
         # the send_click() function.
+        save_button.config(command=self.send_click)
         save_button.pack(fill=tk.BOTH, side=tk.RIGHT, padx=5, pady=5)
 
         self.footer_label = tk.Label(master=self, text="Ready.")
@@ -179,47 +180,29 @@ class MainApp(tk.Frame):
         self.base_path.mkdir(parents=True, exist_ok=True)
         self._draw()
 
-        #this checks if there is an existing server in place 
+        #self.root.after(100, self.initialize_user)
+    
+    '''def initialize_user(self):
+    #this checks if there is an existing user in place 
         if not self.existing_user():
-            self.configure_server()
+            self.configure_server()'''
 
     def existing_user(self):
-        #checks to see if there is already an existing user.
-        user_notebooks = list(self.base_path.glob("*.json"))
-
-        #if there isn't any existing users, return false
-        if len(user_notebooks) == 0:
-            return False
-        
-        #this should display all the current usernames that exist
-        username_lst = []
-        current_user = None
-        for notebook in user_notebooks:
-            #this stores all the usernames in a list 
-            username_lst.append(notebook.stem)
-        if username_lst:
-            default_user = username_lst[0]
-            current_user = simpledialog.askstring("Select User", "Enter Username:", initialvalue=default_user)
-        
-        nb_path = None
-        for nb in user_notebooks:
-            #if the notebook username is the same as current user
-            if nb.stem == current_user:
-                nb_path = nb
-                break
-       try:
-            self.notebook = Notebook(current_user, '')
+        nb_path = self.base_path / f"{self.username}.json"
+        if nb_path.exists():
+            self.notebook = Notebook(self.username, '')
             self.notebook.load(nb_path)
-
-            #update the username and the password
-            self.username = username
-            self.password = self.notebook.password
 
             #put contacts into the GUI
             for contact in self.notebook.get_contacts():
                 self.body.insert_contact(contact)        
                 for message in self.notebook.fetch_messages(contact):
-                    self.body.insert_contact_message(message, contact) 
+                    #this is if the user sends the message
+                    if message.startswith("TO"):
+                        self.body.insert_user_message(message)
+                    #else, this is if the user receives the message
+                    else:
+                        self.body.insert_contact_message(message, contact)
             return True   
 
     def send_message(self):
@@ -232,7 +215,7 @@ class MainApp(tk.Frame):
             if self.direct_messenger.send(message, self.recipient):
                 #save the message locally 
                 if self.notebook:
-                    self.notebook.add_message(self.recipient, f"Message to {self.recipient}")
+                    self.notebook.add_message(self.recipient, f"TO {self.recipient}")
                     self.notebook.save(self.base_path / f"{self.username}.json")
             
             self.body.insert_user_message(message)
@@ -250,8 +233,8 @@ class MainApp(tk.Frame):
         contact = simpledialog.askstring("Add contact", "Enter username:")
         if contact not in self.body._contacts:
             self.body.insert_contact(contact)
-            self.notebook.add_contact(contact)
-            self.notebook.save(self.base_path / f"{self.username}.json")
+            #self.notebook.add_contact(contact)
+            #self.notebook.save(self.base_path / f"{self.username}.json")
 
 
     def recipient_selected(self, recipient):
@@ -262,23 +245,25 @@ class MainApp(tk.Frame):
                               self.username, self.password, self.server)
         self.username = ud.user
         self.password = ud.pwd
-        self.server = ud.server
-
-        #start the notebook
+        self.server = ud.server.strip()
+        ''''
+        #start the notebook (for local)
         nb_path = self.base_path / f"{self.username}.json"
         if nb_path.exists():
             self.notebook = Notebook(self.username, self.password)
             self.notebook.load(nb_path)
         else:
             self.notebook = Notebook(self.username, self.password)
-            self.notebook.save(nb_path)
+            self.notebook.save(nb_path)'''
         
         try:
             self.direct_messenger = DirectMessenger(username= self.username, password= self.password)
-            self.direct_messenger.start_client("127.0.0.1", "3001")
+            #self.direct_messenger.start_client("127.0.0.1", "3001")
+            #print(ud.server)
+            self.direct_messenger.start_client(self.server, "3001")
             self.footer.footer_label.config(text="You've been connected!")
         except:
-            self.footer.footer_label.config(text="There's a coonnection error")
+            self.footer.footer_label.config(text="There's a connection error")
     
         # You must implement this!
         # You must configure and instantiate your
