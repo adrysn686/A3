@@ -65,7 +65,8 @@ class DirectMessenger:
     self.send_file.write(msg + '\r\n')
     self.send_file.flush()
     resp = self.recv_file.readline() 
-    resp = self.recv_file.readline() 
+    #resp = self.recv_file.readline()
+    print(resp)
     parsed_json = extract_json(resp)
     
     message_lst = []
@@ -84,21 +85,26 @@ class DirectMessenger:
       message_lst.append(direct_msg)
     
     return message_lst
- 
+  
   def retrieve_all(self) -> list:
     # must return a list of DirectMessage objects containing all messages
-
     msg = fetch_json(self.token, "all")
     self.send_file.write(msg + '\r\n')
     self.send_file.flush()
-    resp = self.recv_file.readline() 
-    resp = self.recv_file.readline() 
+    
+    #resp = self.recv_file.readline()
+    #self.client.settimeout(5)
+    try:
+      resp = self.recv_file.readline()
+    except Exception as e:
+        print("Error in retrieve_all:", e)
+    
     parsed_json = extract_json(resp)
     
     message_lst = []
     #parsed_json.messages is a list of message data dictionaries 
 
-    for msg_data in parsed_json.messages:
+    for msg_data in parsed_json.get('messages', []):
       direct_msg = DirectMessage()
       direct_msg.message = msg_data.get('message', '')
       direct_msg.timestamp = msg_data.get('timestamp', 0)
@@ -112,15 +118,15 @@ class DirectMessenger:
     
     return message_lst
 
-    
+
   
   def get_msg(self):
     return extract_json(self.recv_file.readline())
 
-  '''def _send(self, message:str):
+  def _send(self, message:str):
     self.send_file.write(message + '\n')
     self.send_file.flush()
 
   def _retrieve_messages(self, fetch: str) -> list:
     msg = fetch_json(self.token, fetch)
-    self._send(msg)'''
+    self._send(msg)

@@ -16,6 +16,7 @@ from notebook import Notebook
 import tkinter as tk    
 from tkinter import ttk, filedialog
 from typing import Text
+import threading
 
 class Body(tk.Frame):
     def __init__(self, root, recipient_selected_callback=None):
@@ -169,6 +170,7 @@ class MainApp(tk.Frame):
         self.recipient = ''
         self.direct_messenger = None
         self.notebook = None
+        self.contact_exist = False
         # You must implement this! You must configure and
         # instantiate your DirectMessenger instance after this line.
         #self.direct_messenger = ... continue!
@@ -185,8 +187,7 @@ class MainApp(tk.Frame):
     '''def initialize_user(self):
     #this checks if there is an existing user in place 
         if not self.existing_user():
-            self.configure_server()'''
-
+            self.configure_server()
     def existing_user(self):
         nb_path = self.base_path / f"{self.username}.json"
         if nb_path.exists():
@@ -203,7 +204,8 @@ class MainApp(tk.Frame):
                     #else, this is if the user receives the message
                     else:
                         self.body.insert_contact_message(message, contact)
-            return True   
+            return True 
+'''
 
     def send_message(self):
         if not self.direct_messenger:
@@ -218,8 +220,8 @@ class MainApp(tk.Frame):
                     self.notebook.add_message(self.recipient, f"TO {self.recipient}")
                     self.notebook.save(self.base_path / f"{self.username}.json")
             
-            self.body.insert_user_message(message)
-            self.body.set_text_entry("")
+            #self.body.insert_user_message(message)
+            #.body.set_text_entry("")
             self.footer.footer_label.config(text="Message sent")
 
         except Exception as e:
@@ -231,14 +233,30 @@ class MainApp(tk.Frame):
         # the name of the new contact, and then use one of the body
         # methods to add the contact to your contact list
         contact = simpledialog.askstring("Add contact", "Enter username:")
-        if contact not in self.body._contacts:
+        if contact:
             self.body.insert_contact(contact)
+            #self.contact_exist = True
             #self.notebook.add_contact(contact)
             #self.notebook.save(self.base_path / f"{self.username}.json")
 
-
     def recipient_selected(self, recipient):
         self.recipient = recipient
+        #this is to check if you're logged in
+
+        if self.direct_messenger:
+            #retrieve all messages from the current user 
+            message_list = self.direct_messenger.retrieve_all()
+            for msg in message_list:
+                #if msg.recipient == self.recipient or msg.recipient == self.username:
+                if (msg.recipient == self.recipient) or (msg.sender == self.recipient):
+                    if msg.sender == self.recipient:
+                        self.body.insert_contact_message(f"{msg.sender}: {msg.message}")
+                    else:
+                        self.body.insert_user_message(f"YOU: {msg.message}")
+                #if msg.sender == self.username:
+                    #self.body.insert_user_message(f"YOU: {msg.message}")
+                #this meand you're receiving a message 
+
 
     def configure_server(self):
         ud = NewContactDialog(self.root, "Configure Account",
@@ -269,62 +287,81 @@ class MainApp(tk.Frame):
         # You must configure and instantiate your
         # DirectMessenger instance after this line.
 
-    def publish(self, message:str):
-        # You must implement this!
-        pass
-
+    def publish(self, message:str, sender:str):
+            if not sender or not message:
+                return
+            if sender != self.username:
+                self.body.insert_contact_message(f"{sender}: {message}")
+            else:
+                self.body.insert_user_message(f"YOU: {message}")
     def check_new(self):
-        # You must implement this!
-        if self.direct_messenger and self.notebook:
-            try:
+        if self.direct_messenger:
+            # Run network check in a background thread
+            threading.Thread(target=self._fetch_messages_thread, daemon=True).start()
+        
+        # Schedule next check (non-blocking)
+        self.after(5000, self.check_new)
+
+    def _fetch_messages_thread(self):
+        try:
+            msg_list = self.direct_messenger.retrieve_new()  # Blocking call (but in a thread)
+            for msg in msg_list:
+                # Schedule GUI updates safely
+                self.root.after_idle(self._process_message, msg)
+        except Exception as e:
+            self.root.after_idle(
+                self.footer.footer_label.config,
+                {"text": f"Error: {e}"}
+            )
+
+    def _process_message(self, msg):
+        sender = msg['from']
+        message = msg['message']
+        self.publish(message, sender)
+        if sender not in self.body._contacts:
+            self.body.insert_contact(sender)
+    '''
+        def check_new(self):
+            #self.body.insert_user_message('hello world')
+            if self.direct_messenger:
                 msg_list = self.direct_messenger.retrieve_new()
+                #each msg is a dictionary w info 
                 for msg in msg_list:
-                    #receiving a message (if there is a sender)
-                    if self.msg.sender != None:
-                        #message is saved
-                        self.notebook.add_message(msg.sender, msg.message)
-                        self.notebook.save(str(self.base_path / f"{self.username}.json"))
-                        
-                        #checks if the msg is from the selected contact, bc of it is, you have to display it 
-                        if msg.sender == self.recipient:
-                            #should be printed right away in the chat
-                            self.body.insert_contact_message(msg.message, msg.sender)
-                        
-                        #this is when there's a new msg NOT from the person you're chatting with 
-                        else:
-                            notif = self.footer.footer_label.cget("text")
-                            self.footer.footer_label.config(
-                            text=f"{notif} - New from {msg.sender}"
-                        )
-            except:
-                print("Error checking message")
-                    
+                    message = msg['message']
+                    sender = msg['from']
+                    self.publish(message, sender)
+                    if sender not in self.body._contacts:
+                        self.body.insert_contact(sender)
+            #if self.contact_exist is True:
+            self.after(5000, app.check_new)    
+
+    '''          
 
     def _draw(self):
-        # Build a menu and add it to the root frame.
-        menu_bar = tk.Menu(self.root)
-        self.root['menu'] = menu_bar
-        menu_file = tk.Menu(menu_bar)
+            # Build a menu and add it to the root frame.
+            menu_bar = tk.Menu(self.root)
+            self.root['menu'] = menu_bar
+            menu_file = tk.Menu(menu_bar)
 
-        menu_bar.add_cascade(menu=menu_file, label='File')
-        menu_file.add_command(label='New')
-        menu_file.add_command(label='Open...')
-        menu_file.add_command(label='Close')
+            menu_bar.add_cascade(menu=menu_file, label='File')
+            menu_file.add_command(label='New')
+            menu_file.add_command(label='Open...')
+            menu_file.add_command(label='Close')
 
-        settings_file = tk.Menu(menu_bar)
-        menu_bar.add_cascade(menu=settings_file, label='Settings')
-        settings_file.add_command(label='Add Contact',
-                                  command=self.add_contact)
-        settings_file.add_command(label='Configure DS Server',
-                                  command=self.configure_server)
+            settings_file = tk.Menu(menu_bar)
+            menu_bar.add_cascade(menu=settings_file, label='Settings')
+            settings_file.add_command(label='Add Contact',
+                                    command=self.add_contact)
+            settings_file.add_command(label='Configure DS Server',
+                                    command=self.configure_server)
 
-        # The Body and Footer classes must be initialized and
-        # packed into the root window.
-        self.body = Body(self.root,
-                         recipient_selected_callback=self.recipient_selected)
-        self.body.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-        self.footer = Footer(self.root, send_callback=self.send_message)
-        self.footer.pack(fill=tk.BOTH, side=tk.BOTTOM)
+            # The Body and Footer classes must be initialized and
+            # packed into the root window.
+            self.body = Body(self.root,
+                            recipient_selected_callback=self.recipient_selected)
+            self.body.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+            self.footer = Footer(self.root, send_callback=self.send_message)
+            self.footer.pack(fill=tk.BOTH, side=tk.BOTTOM)
 
 
 if __name__ == "__main__":
