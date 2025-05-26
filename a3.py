@@ -9,7 +9,8 @@
 # 32241248
 
 from tkinter import simpledialog
-from ds_messenger import DirectMessenger, DirectMessage
+from ds_messenger import DirectMessenger
+#from ds_messenger import DirectMessenger, DirectMessage
 from pathlib import Path
 import time 
 from notebook import Notebook
@@ -17,6 +18,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from typing import Text
 import threading
+
 
 class Body(tk.Frame):
     def __init__(self, root, recipient_selected_callback=None):
@@ -275,10 +277,11 @@ class MainApp(tk.Frame):
             self.notebook.save(nb_path)'''
         
         try:
-            self.direct_messenger = DirectMessenger(username= self.username, password= self.password)
+            self.direct_messenger = DirectMessenger(self.server, self.username, self.password)
             #self.direct_messenger.start_client("127.0.0.1", "3001")
             #print(ud.server)
-            self.direct_messenger.start_client(self.server, "3001")
+            self.direct_messenger.connect()
+            self.direct_messenger._authenticate()
             self.footer.footer_label.config(text="You've been connected!")
         except:
             self.footer.footer_label.config(text="There's a connection error")
@@ -304,7 +307,7 @@ class MainApp(tk.Frame):
 
     def _fetch_messages_thread(self):
         try:
-            msg_list = self.direct_messenger.retrieve_new()  # Blocking call (but in a thread)
+            msg_list = self.direct_messenger.retrieve_new() 
             for msg in msg_list:
                 # Schedule GUI updates safely
                 self.root.after_idle(self._process_message, msg)
