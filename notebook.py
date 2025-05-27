@@ -14,7 +14,7 @@
 
 import json, time
 from pathlib import Path
-
+#from ds_messenger import DirectMessage
 
 class NotebookFileError(Exception):
     """
@@ -74,50 +74,110 @@ class Diary(dict):
     """ 
     entry = property(get_entry, set_entry)
     timestamp = property(get_time, set_time)
-    
+
+class DirectMessage:
+  def __init__(self, recipient=None, message=None, sender=None, timestamp=None):
+      self.recipient = recipient
+      self.message = message
+      self.sender = sender
+      self.timestamp = timestamp
     
 class Notebook:
     """Notebook is a class that can be used to manage a diary notebook."""
 
-    def __init__(self, username: str, password: str):
-        """Creates a new Notebook object. 
-        
-        Args:
-            username (str): The username of the user.
-            password (str): The password of the user.
-            bio (str): The bio of the user.
-        """
+    def __init__(self, username: str, password: str, server:str):
+        """Creates a new Notebook object. """
         self.username = username 
         self.password = password 
-        #self.bio = bio 
-        self._diaries = []
-        self._contacts = []
-        self._messages = [] # a list of tuples contaning the sender and message 
+        self.server = server
+        self.contacts = []
+        self.messages = [] #a list of direct message objects
+        self.file_path = None
     
-    def add_message(self, sender:str, message:str) -> None:
+    def add_message(self, msg) -> None:
         '''
-        adds messages with the sender and the message 
+        adds messages with direct message object
         '''
-        self._messages.append((sender, message))
-        #self._contacts.add(sender)
-    
+        self.messages.append(msg)
+
     def add_contact(self, contact):
-        self._contacts.append(contact)
-    
-    def fetch_messages(self, contact):
-        '''
-        get existing messages from local device
-        '''
-        message_lst = []
-        for messages in self._messages:
-            sender = messages[0]
-            if sender == contact:
-                message_lst.append(messages[1])
-        return message_lst
+        """Adds a contact if not already present and not the user themselves."""
+        if contact != self.username and contact not in self.contacts:
+            self.contacts.append(contact)
+
+    def get_messages(self, contact: str) -> list:
+        return self.messages
     
     def get_contacts(self):
-        return self._contacts
+        return self.contacts
     
+    def set_file_path(self, path):
+        self.file_path = Path(path)
+    
+    def save(self, file_path: str = None) -> None:
+        """
+        Saves the notebook to a DSU file.
+        
+        Args:
+            file_path: Path to save the notebook. If None, uses self._file_path
+        """
+        if file_path:
+            self.file_path = Path(file_path)
+            
+        if not self.file_path:
+            raise NotebookFileError("No file path specified")
+            
+        # Prepare data for serialization
+        data = {
+            'username': self.username,
+            'password': self.password,
+            'server': self.server,
+            'contacts': self.contacts,
+            'messages': [{
+                'recipient': msg.recipient,
+                'sender': msg.sender,
+                'message': msg.message,
+                'timestamp': msg.timestamp
+            } for msg in self.messages]
+        }
+        
+        try:
+            # Create parent directory if it doesn't exist
+            self.file_path.parent.mkdir(parents=True, exist_ok=True) 
+            with open(self.file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            raise NotebookFileError(f"Error saving notebook: {e}")
+
+    def load(self, file_path):
+        path = Path(file_path)
+        if path.exists():
+            try:
+                with open(path, 'r', encoding="utf-8") as file_path:
+                    file = json.load(file_path)
+                    self.username = file['username']
+                    self.password = file['password']
+                    self.server = file.get('server', '')
+                    self.contacts = file['contacts']
+                    self.file_path = path
+                
+                #change message dictionaries into direct msg objects to load it out
+                self.messages = []
+                for msg_data in file['messages']:
+                    msg = DirectMessage(
+                        recipient=msg_data['recipient'],
+                        sender=msg_data['sender'],
+                        message=msg_data['message'],
+                        timestamp=msg_data.get('timestamp', time.time())
+                    )
+                    self.messages.append(msg)
+            except Exception as e:
+                raise NotebookFileError(f"Error loading notebook: {e}")
+
+        else:
+            print(("Missing required fields in notebook file"))
+
+
     def add_diary(self, diary: Diary) -> None:
         """Accepts a Diary object as parameter and appends it to the diary list. Diaries 
         are stored in a list object in the order they are added. So if multiple Diary objects 
@@ -146,60 +206,3 @@ class Notebook:
     def get_diaries(self) -> list[Diary]:
         """Returns the list object containing all diaries that have been added to the Notebook object"""
         return self._diaries
-
-    def save(self, path: str) -> None:
-        """
-        Accepts an existing notebook file to save the current instance of Notebook to the file system.
-
-        Example usage:
-        
-        ```
-        notebook = Notebook('jo)
-        notebook.save('/path/to/file.json')
-        ```
-
-        Raises NotebookFileError, IncorrectNotebookError
-        """
-        p = Path(path)
-        if p.parent.exists() and p.suffix == '.json':
-            try:
-                f = open(p, 'w')
-                json.dump(self.__dict__, f, indent=4)
-                f.close()
-            except Exception as ex:
-                raise NotebookFileError("Error while attempting to process the notebook file.", ex)
-        else:
-            raise NotebookFileError("Invalid notebook file path or type")
-        
-
-
-    def load(self, path: str) -> None:
-        """
-        Populates the current instance of Notebook with data stored in a notebook file.
-
-        Example usage: 
-
-        ```
-        notebook = Notebook()
-        notebook.load('/path/to/file.json')
-        ```
-
-        Raises NotebookFileError, IncorrectNotebookError
-        """
-        p = Path(path)
-
-        if p.exists() and p.suffix == '.json':
-            try:
-                f = open(p, 'r')
-                obj = json.load(f)
-                self.username = obj['username']
-                self.password = obj['password']
-                #self.bio = obj['bio']
-                for diary_obj in obj['_diaries']:
-                    diary = Diary(diary_obj['entry'], diary_obj['timestamp'])
-                    self._diaries.append(diary)
-                f.close()
-            except Exception as ex:
-                raise IncorrectNotebookError(ex)
-        else:
-            raise NotebookFileError()

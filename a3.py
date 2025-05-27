@@ -10,6 +10,7 @@
 
 from tkinter import simpledialog
 from ds_messenger import DirectMessenger
+#from ds_messenger import DirectMessage
 #from ds_messenger import DirectMessenger, DirectMessage
 from pathlib import Path
 import time 
@@ -19,6 +20,12 @@ from tkinter import ttk, filedialog
 from typing import Text
 import threading
 
+class DirectMessage:
+  def __init__(self, recipient=None, message=None, sender=None, timestamp=None):
+      self.recipient = recipient
+      self.message = message
+      self.sender = sender
+      self.timestamp = timestamp
 
 class Body(tk.Frame):
     def __init__(self, root, recipient_selected_callback=None):
@@ -180,51 +187,27 @@ class MainApp(tk.Frame):
         # After all initialization is complete,
         # call the _draw method to pack the widgets
         # into the root frame
-        self.base_path = Path.home() / "OneDrive" / "Desktop" / "A3"
+        self.base_path = Path.home() / "OneDrive" / "Desktop" / f"{self.username}.dsu"
         self.base_path.mkdir(parents=True, exist_ok=True)
         self._draw()
 
         #self.root.after(100, self.initialize_user)
     
-    '''def initialize_user(self):
-    #this checks if there is an existing user in place 
-        if not self.existing_user():
-            self.configure_server()
-    def existing_user(self):
-        nb_path = self.base_path / f"{self.username}.json"
-        if nb_path.exists():
-            self.notebook = Notebook(self.username, '')
-            self.notebook.load(nb_path)
-
-            #put contacts into the GUI
-            for contact in self.notebook.get_contacts():
-                self.body.insert_contact(contact)        
-                for message in self.notebook.fetch_messages(contact):
-                    #this is if the user sends the message
-                    if message.startswith("TO"):
-                        self.body.insert_user_message(message)
-                    #else, this is if the user receives the message
-                    else:
-                        self.body.insert_contact_message(message, contact)
-            return True 
-'''
-
     def send_message(self):
         if not self.direct_messenger:
             self.footer.footer_label.config(text = "no connection!")
             return
         message = self.body.get_text_entry()
         try:
-            #send through the network 
-            if self.direct_messenger.send(message, self.recipient):
-                #save the message locally 
-                if self.notebook:
-                    self.notebook.add_message(self.recipient, f"TO {self.recipient}")
-                    self.notebook.save(self.base_path / f"{self.username}.json")
-            
-            #self.body.insert_user_message(message)
-            #.body.set_text_entry("")
-            self.footer.footer_label.config(text="Message sent")
+            msg = DirectMessage(recipient=self.recipient, sender=self.username, message=message)
+        
+            if self.direct_messenger.send(msg.message, msg.recipient):
+                # Save locally
+                self.notebook.add_message(msg)
+                self.notebook.save()
+                self.body.insert_user_message(f"You: {message}")
+                self.body.set_text_entry("")
+
 
         except Exception as e:
             self.footer.footer_label.config(text=f"Error: {e}")
@@ -237,28 +220,47 @@ class MainApp(tk.Frame):
         contact = simpledialog.askstring("Add contact", "Enter username:")
         if contact:
             self.body.insert_contact(contact)
-            #self.contact_exist = True
-            #self.notebook.add_contact(contact)
-            #self.notebook.save(self.base_path / f"{self.username}.json")
+            
+            # Add to notebook and save
+        if self.notebook:
+            self.notebook.add_contact(contact)
+            try:
+                self.notebook.save()
+                self.footer.footer_label.config(text=f"Added {contact}")
+            except Exception as e:
+                self.footer.footer_label.config(text=f"Error saving: {e}")
 
     def recipient_selected(self, recipient):
         self.recipient = recipient
         #this is to check if you're logged in
+        
+        # This loads local messages first
+        local_msgs = self.notebook.get_messages(recipient)
+        for msg in local_msgs:
+            if msg.sender == self.username:
+                self.body.insert_user_message(f"You: {msg.message}")
+            else:
+                self.body.insert_contact_message(f"{msg.sender}: {msg.message}")
 
         if self.direct_messenger:
             #retrieve all messages from the current user 
-            message_list = self.direct_messenger.retrieve_all()
-            for msg in message_list:
-                #if msg.recipient == self.recipient or msg.recipient == self.username:
-                if (msg.recipient == self.recipient) or (msg.sender == self.recipient):
-                    if msg.sender == self.recipient:
-                        self.body.insert_contact_message(f"{msg.sender}: {msg.message}")
-                    else:
-                        self.body.insert_user_message(f"YOU: {msg.message}")
-                #if msg.sender == self.username:
-                    #self.body.insert_user_message(f"YOU: {msg.message}")
-                #this meand you're receiving a message 
-
+            #if the notebook exists, then load --> return a message list 
+            #else: (try retrieve_all)
+            try:
+                message_list = self.direct_messenger.retrieve_all()
+                for msg in message_list:
+                    #if msg.recipient == self.recipient or msg.recipient == self.username:
+                    if (msg.recipient == self.recipient) or (msg.sender == self.recipient):
+                        if msg.sender == self.recipient:
+                            self.body.insert_contact_message(f"{msg.sender}: {msg.message}")
+                        else:
+                            self.body.insert_user_message(f"YOU: {msg.message}")
+                    #if msg.sender == self.username:
+                        #self.body.insert_user_message(f"YOU: {msg.message}")
+                    #this meand you're receiving a message 
+                    self.notebook.save()
+            except Exception as e:
+                self.footer.footer_label.config(text=f"Error retrieving messages: {e}")
 
     def configure_server(self):
         ud = NewContactDialog(self.root, "Configure Account",
@@ -266,16 +268,12 @@ class MainApp(tk.Frame):
         self.username = ud.user
         self.password = ud.pwd
         self.server = ud.server.strip()
-        ''''
+    
         #start the notebook (for local)
-        nb_path = self.base_path / f"{self.username}.json"
-        if nb_path.exists():
-            self.notebook = Notebook(self.username, self.password)
-            self.notebook.load(nb_path)
-        else:
-            self.notebook = Notebook(self.username, self.password)
-            self.notebook.save(nb_path)'''
-        
+        notebook_dir = Path.home() / "dsu_files"
+        notebook_dir.mkdir(exist_ok=True)
+        nb_path = notebook_dir / f"{self.username}.dsu"
+
         try:
             self.direct_messenger = DirectMessenger(self.server, self.username, self.password)
             #self.direct_messenger.start_client("127.0.0.1", "3001")
@@ -285,10 +283,28 @@ class MainApp(tk.Frame):
             self.footer.footer_label.config(text="You've been connected!")
         except:
             self.footer.footer_label.config(text="There's a connection error")
+
+        #if notebook exists, load the contacts into GUI
+        if nb_path.exists():
+            self.notebook = Notebook(self.username, self.password, self.server)
+            self.notebook.load(nb_path)
+            for contact in self.notebook.get_contacts():
+                self.body.insert_contact(contact)
+            self.footer.footer_label.config(text="Loaded contacts!")
+
+            #self.direct_messenger.start_client("127.0.0.1", "3001")
+            #print(ud.server)
+        else:
+            self.notebook = Notebook(self.username, self.password, self.server)
+            self.notebook.save(nb_path)
+    
+        #if there's a dsunotebook already exists
+        #then load notebook and get contact list (self.body.insert_contact(contact))
     
         # You must implement this!
         # You must configure and instantiate your
         # DirectMessenger instance after this line.
+    
 
     def publish(self, message:str, sender:str):
             if not sender or not message:
@@ -297,6 +313,7 @@ class MainApp(tk.Frame):
                 self.body.insert_contact_message(f"{sender}: {message}")
             else:
                 self.body.insert_user_message(f"YOU: {message}")
+    
     def check_new(self):
         if self.direct_messenger:
             # Run network check in a background thread
@@ -318,27 +335,28 @@ class MainApp(tk.Frame):
             )
 
     def _process_message(self, msg):
-        sender = msg['from']
-        message = msg['message']
-        self.publish(message, sender)
-        if sender not in self.body._contacts:
-            self.body.insert_contact(sender)
-    '''
-        def check_new(self):
-            #self.body.insert_user_message('hello world')
-            if self.direct_messenger:
-                msg_list = self.direct_messenger.retrieve_new()
-                #each msg is a dictionary w info 
-                for msg in msg_list:
-                    message = msg['message']
-                    sender = msg['from']
-                    self.publish(message, sender)
-                    if sender not in self.body._contacts:
-                        self.body.insert_contact(sender)
-            #if self.contact_exist is True:
-            self.after(5000, app.check_new)    
+        try:
+            # Convert to DirectMessage object
+            '''
+        
+            # Add to notebook the DirectMessage object
+            self.notebook.add_message(msg)
+            self.notebook.save()
+'''
+            #update the GUI
+            
+            sender = msg.sender
+            message=msg.message
 
-    '''          
+            self.publish(message, sender)
+
+            #if recipient = None: --> add this to notebook
+            if sender not in self.body._contacts and sender not in self.notebook.contacts and sender != self.username:
+                self.body.insert_contact(sender)
+                self.notebook.add_contact(sender)
+            
+        except Exception as e:
+            print(f"Failed to process message: {e}")
 
     def _draw(self):
             # Build a menu and add it to the root frame.

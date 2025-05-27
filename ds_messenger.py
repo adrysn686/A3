@@ -10,6 +10,7 @@
 import socket
 import json
 import time
+from notebook import Notebook
 from datetime import datetime
 from ds_protocol import extract_json, authentication_json, direct_msg_json, fetch_json
 
@@ -28,7 +29,7 @@ class DirectMessenger:
       self.username = username
       self.password = password
       self.socket = None
-        
+    
   def connect(self):
     """Connect to the server"""
     try:
@@ -63,6 +64,9 @@ class DirectMessenger:
 
   def send(self, message: str, recipient: str) -> bool:
     """Send a direct message to another user"""
+
+    #save locally first
+    self
     if not self.token and not self._authenticate():
         print("Not authenticated. Please authenticate first.")
         return False
