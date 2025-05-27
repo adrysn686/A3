@@ -48,7 +48,7 @@ class DSUServer:
                     print(f"Message received by server: {repr(data)}")
                 direct_message_read = False
                 direct_message_sent = False
-                msg = data.decode().strip()
+                msg = data.decode().strip() 
                 if not msg:
                     if DEBUG:
                         print("Connection closed.")
@@ -90,7 +90,8 @@ class DSUServer:
                                 message = f'Welcome to ICS32 Distributed Social, {uname}!'
                                 status = 'ok'
                                 self.sessions[current_user_token] = uname
-                               
+
+                                
                             else:
                                 if fetched_user['password'] != password:
                                     status = "error"
@@ -106,31 +107,25 @@ class DSUServer:
                     elif 'directmessage' in command:
                         
                         args = command['directmessage']
-                        print('1')
 
                         if 'token' not in command:
                             message = 'Missing token.'
                             status = 'error'
-                            print('2')
                         elif len(command) != 2:
                             message = "Incorrectly formatted directmessage command."
                             status = 'error'
-                            print('3')
                         elif args not in ['all', 'unread'] and not (isinstance(args, dict) and len(args) == 3):
                             message = "Incorrect fields provided to directmessage command object."
                             status = 'error'
-                            print('4')
                         elif isinstance(args, dict) and not all(field in command['directmessage'] for field in ['entry', 'timestamp', 'recipient']):
                             message = "Missing required fields for directmessage command."
                             status = 'error'
-                            print('5')
                         else:
                             token = command['token']
                             recipient = args['recipient']
                             #timestamp = args['timestamp']
                             timestamp = str((datetime.now().timestamp()))
                             entry = args['entry']
-                            print('6')
                             if token == current_user_token and token in self.sessions:
                                 current_user = self.sessions[token]
                                 direct_message_sent = True
@@ -138,15 +133,12 @@ class DSUServer:
                                 if self._send_message(entry,current_user, recipient, timestamp):
                                     message = f'Direct message sent'
                                     status = 'ok'
-                                    print('7')
                                 else:
                                     message = f'Unable to send direct message'
                                     status = 'error'
-                                    print('8')
                             else:
                                 message = 'Invalid user token.'
                                 status = 'error'
-                                print('9')
                             
                     elif 'fetch' in command:
                         args = command['fetch']
@@ -165,7 +157,6 @@ class DSUServer:
                                 current_user = self.sessions[token]
                                 direct_message_read = True
                                 message = self._read_unread_messages(current_user)
-
                                 status = 'ok'
                             else:
                                 message = f'Invalid user token.'
@@ -190,14 +181,11 @@ class DSUServer:
                     resp = {'response': {'type':status, 'message': message}}
                 json_response = json.dumps(resp).encode()
                 client_socket.sendall(json_response + b'\r\n')
-                print('10')
             if current_user_token and current_user_token in self.sessions:
-                print('11')
                 del self.sessions[current_user_token]
         except Exception as e:
             print(f"Error handling client {client_address}: {e}")
         finally:
-            print('12')
             client_socket.close()
             self.clients.remove(client_socket)
             

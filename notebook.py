@@ -102,7 +102,7 @@ class Notebook:
 
     def add_contact(self, contact):
         """Adds a contact if not already present and not the user themselves."""
-        if contact != self.username and contact not in self.contacts:
+        if (contact != self.username) and (contact not in self.contacts) and (type(contact) == str):
             self.contacts.append(contact)
 
     def get_messages(self, contact: str) -> list:
