@@ -22,13 +22,17 @@ class DirectMessage:
         self.timestamp = timestamp
 
 class DirectMessenger:
-    def __init__(self, dsuserver='127.0.0.1', username=None, password=None):
+    def __init__(self, dsuserver=None, username=None, password=None):
         self.host = dsuserver
         self.port = 3001
         self.token = None
         self.username = username
         self.password = password
         self.socket = None
+        
+        if dsuserver and username and password:
+            self.connect()
+            self._authenticate()
     
     def connect(self):
         """Connect to the server"""
@@ -136,7 +140,7 @@ class DirectMessenger:
         except Exception as e:
             print(f"Error: {e}")
             return None
-  
+    '''
     def close(self):
         """Close the connection"""
         if self.socket:
@@ -144,4 +148,4 @@ class DirectMessenger:
                 self.socket.close()
                 print("Connection closed")
             except Exception as e:
-                print(f"Error closing connection: {e}")
+                print(f"Error closing connection: {e}")'''

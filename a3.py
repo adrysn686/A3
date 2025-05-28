@@ -301,8 +301,8 @@ class MainApp(tk.Frame):
             self.direct_messenger = DirectMessenger(self.server, self.username, self.password)
             #self.direct_messenger.start_client("127.0.0.1", "3001")
             #print(ud.server)
-            self.direct_messenger.connect()
-            self.direct_messenger._authenticate()
+            #self.direct_messenger.connect()
+            #self.direct_messenger._authenticate()
             self.footer.footer_label.config(text="You've been connected!")
         except Exception as e:
             self.footer.footer_label.config(text="There's a connection error")
