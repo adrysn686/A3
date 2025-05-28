@@ -12,7 +12,8 @@
 # RIGHT NOW, though can you certainly take a look at it if you are curious since we 
 # already covered a bit of the JSON format in class.
 
-import json, time
+import json
+import time
 from pathlib import Path
 #from ds_messenger import DirectMessage
 
@@ -127,7 +128,6 @@ class Notebook:
         if not self.file_path:
             raise NotebookFileError("No file path specified")
             
-        # Prepare data for serialization
         data = {
             'username': self.username,
             'password': self.password,
