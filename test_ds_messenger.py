@@ -1,132 +1,229 @@
 import json
 import socket
+import unittest
 from unittest.mock import MagicMock, patch
-from unittest import TestCase
-import pytest
 from ds_messenger import DirectMessenger, DirectMessage
 
-class TestMessenger(TestCase):
+class TestDirectMessage(unittest.TestCase):
+    """Tests for DirectMessage class"""
+    def test_direct_message_creation(self):
+        msg = DirectMessage(
+            recipient="bob",
+            message="Hello",
+            sender="alice",
+            timestamp="12:00"
+        )
+        self.assertEqual(msg.recipient, "bob")
+        self.assertEqual(msg.message, "Hello")
+        self.assertEqual(msg.sender, "alice")
+        self.assertEqual(msg.timestamp, "12:00")
 
-    @pytest.fixture
-    def mock_direct_messenger():
-        """creates an object of DirectMessenger"""
-        return DirectMessenger(dsuserver='127.0.0.1', username='bob', password = '123')
-
-    @pytest.fixture
-    def mock_direct_message():
-        return DirectMessage(
-                recipient="billy",
-                message="Hello",
-                sender="claire",
-                timestamp="12:00"
-            )
-
-    @patch('socket.socket')
-    def test_connect_working(mock_socket, mock_direct_messenger):
-        mock_socket_instance = mock_socket.return_value
-        mock_connect = mock_socket_instance.connect #this is when i'm calling the connect method
-
-        mock_connect.return_value = True
-
-        assert mock_direct_messenger.connect() is True
-        mock_connect.assert_called_once_with(('127.0.0.1', 3001))
+class TestDirectMessenger(unittest.TestCase):
+    """Tests for DirectMessenger class"""
+    def setUp(self):
+        """Create a test messenger instance before each test"""
+        self.messenger = DirectMessenger(dsuserver='127.0.0.1', username='bob', password='123')
 
     @patch('socket.socket')
-    def test_connect_failure(mock_socket, mock_direct_messenger):
-        mock_socket_instance = mock_socket.return_value
-        mock_socket_instance.connect.side_effect = Exception("Connection failed")
+    def test_connect_success(self, mock_socket):
+        """Test successful connection"""
+        mock_socket.return_value.connect.return_value = None
+        result = self.messenger._DirectMessenger__connect()
+        self.assertTrue(result)
+        mock_socket.return_value.connect.assert_called_once_with(('127.0.0.1', 3001))
 
-        assert mock_direct_messenger.connect() is False
+    @patch('socket.socket')
+    def test_connect_failure(self, mock_socket):
+        """Test failed connection"""
+        mock_socket.return_value.connect.side_effect = socket.timeout
+        result = self.messenger._DirectMessenger__connect()
+        self.assertFalse(result)
 
-    @patch('ds_messenger.DirectMessenger._send_command')
-    def test_authenticate_success(mock_send, mock_direct_messenger):
-        """Test successful authentication."""
-        mock_send.return_value = json.dumps({
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__send_command')
+    def test_authenticate_success(self, mock_send):
+        """Test successful authentication"""
+        mock_response = {
             "response": {
                 "type": "ok",
                 "message": "Success",
                 "token": "abc123"
             }
-        })
+        }
+        mock_send.return_value = json.dumps(mock_response)
+        
+        result = self.messenger._DirectMessenger__authenticate()
+        self.assertTrue(result)
+        self.assertEqual(self.messenger.token, "abc123")
 
-        assert mock_direct_messenger.authenticate() is True
-        assert mock_direct_messenger.token == "abc123"
+    @patch('ds_messenger.extract_json')
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__send_command')
+    def test_authenticate_failure(self, mock_send, mock_extract):
+        """Test failed authentication"""
+        # Set up mocks before instantiation
+        mock_send.return_value = 'mock_response'
+        mock_extract.return_value.type = "error"
+        mock_extract.return_value.message = "Invalid credentials"
+        
+        # Create messenger with disabled auto-auth
+        messenger = DirectMessenger(dsuserver=None, username=None, password=None)
+        messenger.host = '127.0.0.1'
+        messenger.username = 'bob'
+        messenger.password = '123'
+        
+        # Now test authentication
+        result = messenger._DirectMessenger__authenticate()
+        self.assertFalse(result)
+        self.assertIsNone(messenger.token)
 
-
-    @patch('ds_messenger.DirectMessenger._send_command')
-    def test_authenticate_failure(mock_send, mock_direct_messenger):
-        """Test failed authentication."""
-        mock_send.return_value = json.dumps({
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__send_command')
+    def test_send_message_success(self, mock_send):
+        """Test successful message sending"""
+        self.messenger.token = "valid_token"
+        mock_response = {
             "response": {
-                "type": "error",
-                "message": "Invalid credentials"
+                "type": "ok",
+                "message": "Message sent"
             }
-        })
+        }
+        mock_send.return_value = json.dumps(mock_response)
+        
+        result = self.messenger.send("Hello", "alice")
+        self.assertTrue(result)
 
-        assert mock_direct_messenger.authenticate() is False
-        assert mock_direct_messenger.token is None
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__authenticate')
+    def test_send_message_failure(self, mock_auth):
+        """Test failed message sending"""
+        mock_auth.return_value = False
+        result = self.messenger.send("Hello", "alice")
+        self.assertFalse(result)
 
-    @patch('ds_messenger.DirectMessenger._send_command')
-    @patch('ds_messenger.DirectMessenger.authenticate')
-    def test_retrieve_all(mock_auth, mock_send, mock_direct_messenger):
-        """Test retrieving all messages."""
-        mock_auth.return_value = True
-        mock_send.return_value = json.dumps({
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__send_command')
+    def test_retrieve_all_messages(self, mock_send):
+        """Test retrieving all messages"""
+        self.messenger.token = "valid_token"
+        mock_response = {
             "response": {
                 "type": "ok",
                 "messages": [
                     {
-                        "from": "user2", 
-                        "message": "Hi", 
+                        "from": "alice",
+                        "message": "Hi",
                         "timestamp": "12:00",
                         "recipient": "bob"
                     }
                 ]
             }
+        }
+        mock_send.return_value = json.dumps(mock_response)
+        
+        messages = self.messenger.retrieve_all()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].sender, "alice")
+
+    @patch('socket.socket')
+    def test_send_command_success(self, mock_socket):
+        """Test successful command sending"""
+        # Set up mock file response
+        mock_file = MagicMock()
+        mock_file.readline.return_value = json.dumps({
+            "response": {
+                "type": "ok",
+                "message": "Command processed"
+            }
         })
-
-        messages = mock_direct_messenger.retrieve_all()
-        assert len(messages) == 1
-        assert messages[0].sender == "user2"
-
-    @patch('ds_messenger.DirectMessenger.authenticate')
-    @patch('ds_messenger.DirectMessenger._send_command')
-    def test_retrieve_new(mock_send, mock_auth, mock_direct_messenger):
-        """Test retrieving new messages."""
-        mock_auth.return_value = True
-        mock_send.return_value = json.dumps({
+        mock_socket.return_value.makefile.return_value.__enter__.return_value = mock_file
+        
+        # Create messenger with disabled auto-auth
+        messenger = DirectMessenger(dsuserver=None, username=None, password=None)
+        messenger.socket = mock_socket.return_value
+        
+        # Test sending command
+        response = messenger._DirectMessenger__send_command('{"test": "command"}')
+        response_data = json.loads(response)
+        self.assertEqual(response_data['response']['type'], "ok")
+        mock_file.write.assert_called_once_with('{"test": "command"}\r\n')
+    
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__send_command')
+    def test_retrieve_new_messages(self, mock_send):
+        """Test retrieving new messages"""
+        self.messenger.token = "valid_token"
+        mock_response = {
             "response": {
                 "type": "ok",
                 "messages": [
                     {
-                        "from": "user3", 
-                        "message": "New message", 
+                        "from": "alice",
+                        "message": "New message",
                         "timestamp": "12:05",
                         "recipient": "bob"
                     }
                 ]
             }
-        })
-
-        messages = mock_direct_messenger.retrieve_new()
-        assert len(messages) == 1
-        assert messages[0].message == "New message"
+        }
+        mock_send.return_value = json.dumps(mock_response)
+        
+        messages = self.messenger.retrieve_new()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].message, "New message")
 
     @patch('socket.socket')
-    def test_send_command_success(mock_socket, mock_direct_messenger):
-        """Test successful command send."""
-        mock_socket_instance = mock_socket.return_value
-        mock_file = MagicMock()
-        mock_file.readline.return_value = '{"response": "ok"}'
-        mock_socket_instance.makefile.return_value.__enter__.return_value = mock_file
+    def test_send_command_connection_error(self, mock_socket):
+        """Test send command with connection error"""
+        mock_socket.return_value.makefile.side_effect = ConnectionError("Connection failed")
+        
+        messenger = DirectMessenger(dsuserver=None, username=None, password=None)
+        messenger.socket = mock_socket.return_value
+        
+        response = messenger._DirectMessenger__send_command('{"test": "command"}')
+        self.assertIsNone(response)
+    
+    @patch('socket.socket')
+    def test_send_command_timeout(self, mock_socket):
+        """Test send command with timeout"""
+        mock_socket.return_value.makefile.side_effect = socket.timeout("Timeout")
+        
+        messenger = DirectMessenger(dsuserver=None, username=None, password=None)
+        messenger.socket = mock_socket.return_value
+        
+        response = messenger._DirectMessenger__send_command('{"test": "command"}')
+        self.assertIsNone(response)
+    
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__send_command')
+    def test_retrieve_empty_messages(self, mock_send):
+        """Test retrieving empty messages list"""
+        self.messenger.token = "valid_token"
+        mock_response = {
+            "response": {
+                "type": "ok",
+                "messages": []
+            }
+        }
+        mock_send.return_value = json.dumps(mock_response)
+        
+        messages = self.messenger.retrieve_all()
+        self.assertEqual(len(messages), 0)
 
-        response = mock_direct_messenger._send_command('{"test": "command"}')
-        assert response == '{"response": "ok"}'
-        mock_file.write.assert_called_once_with('{"test": "command"}\r\n')
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__send_command')
+    def test_retrieve_messages_failure(self, mock_send):
+        """Test failed message retrieval"""
+        self.messenger.token = "valid_token"
+        mock_response = {
+            "response": {
+                "type": "error",
+                "message": "Failed to retrieve messages"
+            }
+        }
+        mock_send.return_value = json.dumps(mock_response)
+        
+        messages = self.messenger.retrieve_all()
+        self.assertEqual(len(messages), 0)
 
-
-    def test_close_success(mock_direct_messenger):
-        """Test closing the connection."""
-        mock_direct_messenger.socket = MagicMock()
-        mock_direct_messenger.close()
-        mock_direct_messenger.socket.close.assert_called_once()
+    @patch('ds_messenger.DirectMessenger._DirectMessenger__authenticate')
+    def test_retrieve_messages_auth_failure(self, mock_auth):
+        """Test message retrieval with failed authentication"""
+        mock_auth.return_value = False
+        messages = self.messenger.retrieve_all()
+        self.assertEqual(len(messages), 0)
+    
+if __name__ == '__main__':
+    unittest.main()
