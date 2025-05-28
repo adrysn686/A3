@@ -128,14 +128,15 @@ class DirectMessenger:
         """Send a JSON command and return the text response"""
         try:
             if not self.socket:
-                self.__connect()
+                if not self.__connect():
+                    return None
 
             with self.socket.makefile('rw', encoding='utf-8') as client_file:
                 client_file.write(json_msg + '\r\n')
                 client_file.flush()
 
                 response = client_file.readline()
-                return response.strip()
+                return response.strip() if response else None
 
         except ConnectionError as e:
             print(f"Error: {e}")
