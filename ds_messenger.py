@@ -31,10 +31,10 @@ class DirectMessenger:
         self.socket = None
         
         if dsuserver and username and password:
-            self.connect()
-            self._authenticate()
+            self.__connect()
+            self.__authenticate()
     
-    def connect(self):
+    def __connect(self):
         """Connect to the server"""
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -45,14 +45,14 @@ class DirectMessenger:
             print(f"Connection failed: {e}")
             return False
     
-    def _authenticate(self):
+    def __authenticate(self):
         """Authenticate with the server using stored credentials"""
         if not self.username or not self.password:
             return False
             
         # Use ds_protocol's authentication_json to format the request
         auth_msg = authentication_json(self.username, self.password)
-        response = self._send_command(auth_msg)
+        response = self.__send_command(auth_msg)
         
         if response:
             dsp_response = extract_json(response)
@@ -69,14 +69,14 @@ class DirectMessenger:
     def send(self, message: str, recipient: str) -> bool:
         """Send a direct message to another user"""
 
-        if not self.token and not self._authenticate():
+        if not self.token and not self.__authenticate():
             print("Not authenticated. Please authenticate first.")
             return False
             
         # Use ds_protocol's direct_msg_json to format the message
         timestamp = str(datetime.now().timestamp())
         msg_json = direct_msg_json(self.token, message, recipient, timestamp)
-        response = self._send_command(msg_json)
+        response = self.__send_command(msg_json)
         
         if response:
             dsp_response = extract_json(response)
@@ -92,20 +92,20 @@ class DirectMessenger:
     
     def retrieve_all(self) -> list:
         """Retrieve all messages (read and unread)"""
-        return self._retrieve_messages("all")
+        return self.__retrieve_messages("all")
         
     def retrieve_new(self) -> list:
         """Retrieve only unread messages"""
-        return self._retrieve_messages("unread")
+        return self.__retrieve_messages("unread")
         
-    def _retrieve_messages(self, fetch_type) -> list:
+    def __retrieve_messages(self, fetch_type) -> list:
         """Internal method to retrieve messages"""
-        if not self.token and not self._authenticate():
+        if not self.token and not self.__authenticate():
             print("Not authenticated. Please authenticate first.")
-            return []        
+            return []
         # Use ds_protocol's fetch_json to format the request
         fetch_msg = fetch_json(self.token, fetch_type)
-        response = self._send_command(fetch_msg)    
+        response = self.__send_command(fetch_msg)    
         if response:
             dsp_response = extract_json(response)
             if dsp_response.type == "ok":
@@ -123,12 +123,12 @@ class DirectMessenger:
         else:
             print("No response from server when fetching messages")
         return []
-   
-    def _send_command(self, json_msg: str):
+ 
+    def __send_command(self, json_msg: str):
         """Send a JSON command and return the text response"""
         try:
             if not self.socket:
-                self.connect()
+                self.__connect()
 
             with self.socket.makefile('rw', encoding='utf-8') as client_file:
                 client_file.write(json_msg + '\r\n')
@@ -140,12 +140,4 @@ class DirectMessenger:
         except Exception as e:
             print(f"Error: {e}")
             return None
-    '''
-    def close(self):
-        """Close the connection"""
-        if self.socket:
-            try:
-                self.socket.close()
-                print("Connection closed")
-            except Exception as e:
-                print(f"Error closing connection: {e}")'''
+    

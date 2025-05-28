@@ -221,7 +221,8 @@ class MainApp(tk.Frame):
                 self.notebook.save()
                 self.body.insert_user_message(f"You: {message}")
                 self.body.set_text_entry("")
-
+            else:
+                self.footer.footer_label.config(text="Unable to send message.")
 
         except Exception as e:
             self.footer.footer_label.config(text=f"Error: {e}")
@@ -291,7 +292,7 @@ class MainApp(tk.Frame):
                               self.username, self.password, self.server)
         self.username = ud.user
         self.password = ud.pwd
-        self.server = ud.server.strip()    
+        self.server = ud.server.strip()
         #start the notebook (for local)
         notebook_dir = Path.home() / "dsu_files"
         notebook_dir.mkdir(exist_ok=True)
