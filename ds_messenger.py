@@ -41,8 +41,8 @@ class DirectMessenger:
             self.socket.connect((self.host, self.port))
             print(f"Connected to server at {self.host}:{self.port}")
             return True
-        except Exception as e:
-            print(f"Connection failed: {e}")
+        except socket.timeout:
+            print("Connection timed out")
             return False
     
     def __authenticate(self):
@@ -137,7 +137,9 @@ class DirectMessenger:
                 response = client_file.readline()
                 return response.strip()
 
-        except Exception as e:
+        except ConnectionError as e:
             print(f"Error: {e}")
             return None
-    
+        except socket.timeout:
+            print("timeout error")
+            return None
