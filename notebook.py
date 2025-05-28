@@ -117,7 +117,7 @@ class Notebook:
     
     def save(self, file_path: str = None) -> None:
         """
-        Saves the notebook to a DSU file.
+        Saves the notebook to a JSON file.
         
         Args:
             file_path: Path to save the notebook. If None, uses self._file_path
