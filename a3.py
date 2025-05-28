@@ -200,8 +200,6 @@ class MainApp(tk.Frame):
         # After all initialization is complete,
         # call the _draw method to pack the widgets
         # into the root frame
-        self.base_path = Path.home() / "OneDrive" / "Desktop" / f"{self.username}.dsu"
-        self.base_path.mkdir(parents=True, exist_ok=True)
         self._draw()
 
         #self.root.after(100, self.initialize_user)
@@ -294,9 +292,9 @@ class MainApp(tk.Frame):
         self.password = ud.pwd
         self.server = ud.server.strip()
         #start the notebook (for local)
-        notebook_dir = Path.home() / "dsu_files"
+        notebook_dir = Path.home() / "json_files"
         notebook_dir.mkdir(exist_ok=True)
-        nb_path = notebook_dir / f"{self.username}.dsu"
+        nb_path = notebook_dir / f"{self.username}.json"
 
         try:
             self.direct_messenger = DirectMessenger(self.server, self.username, self.password)
