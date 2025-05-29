@@ -249,13 +249,51 @@ class TestDirectMessenger(unittest.TestCase):
         self.assertEqual(len(messages), 0)
     
     @patch('socket.socket')
-    def test_init_invalid_auth_response(self, mock_socket):
-        """Test initialization with invalid auth response"""
-        # Mock successful connection but invalid response
+    def test_successful_authentication_flow(self, mock_socket):
+        """Test successful authentication through initialization"""
+        # Setup mock socket response
         mock_file = MagicMock()
-        mock_file.readline.return_value = "invalid json"
+        mock_file.readline.return_value = json.dumps({
+            "response": {
+                "type": "ok",
+                "message": "Success",
+                "token": "abc123"
+            }
+        })
         mock_socket.return_value.makefile.return_value.__enter__.return_value = mock_file
+
+        # Create messenger which will trigger authentication
+        messenger = DirectMessenger(dsuserver='127.0.0.1', username='bob', password='123')
         
+        # Verify authentication succeeded
+        self.assertEqual(messenger.token, "abc123")
+        self.assertTrue(messenger.send("test", "user"))  # Verify can send messages
+
+    @patch('socket.socket')
+    def test_failed_authentication(self, mock_socket):
+        """Test failed authentication"""
+        # Setup mock to return error response
+        mock_file = MagicMock()
+        mock_file.readline.return_value = json.dumps({
+            "response": {
+                "type": "error",
+                "message": "Invalid credentials"
+            }
+        })
+        mock_socket.return_value.makefile.return_value.__enter__.return_value = mock_file
+
+        messenger = DirectMessenger(dsuserver='127.0.0.1', username='bob', password='123')
+        self.assertIsNone(messenger.token)
+        self.assertFalse(messenger.send("test", "user"))  # Verify cannot send messages
+
+    @patch('socket.socket')
+    def test_no_authentication_response(self, mock_socket):
+        """Test when server doesn't respond to authentication"""
+        # Setup mock to return None (no response)
+        mock_file = MagicMock()
+        mock_file.readline.return_value = None
+        mock_socket.return_value.makefile.return_value.__enter__.return_value = mock_file
+
         messenger = DirectMessenger(dsuserver='127.0.0.1', username='bob', password='123')
         self.assertIsNone(messenger.token)
 
