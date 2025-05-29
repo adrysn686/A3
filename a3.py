@@ -1,3 +1,4 @@
+'''this is the GUI of the program'''
 # a3.py
 
 # Starter code for assignment 2 in ICS 32 Programming with Software Libraries in Python
@@ -9,21 +10,31 @@
 # 32241248
 
 from tkinter import simpledialog
-#from ds_messenger import DirectMessage
-#from ds_messenger import DirectMessenger, DirectMessage
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
 from notebook import Notebook
 from ds_messenger import DirectMessenger
 
+
 class DirectMessage:
     '''This DirectMessage class formats a message object'''
-    def __init__(self, recipient=None, message=None, sender=None, timestamp=None):
+    def __init__(
+            self, recipient=None, message=None, sender=None, timestamp=None
+    ) -> None:
         self.recipient = recipient
         self.message = message
         self.sender = sender
         self.timestamp = timestamp
+
+    def get_recipient(self):
+        '''use to get recipient'''
+        return self.recipient
+
+    def get_message(self):
+        '''use to get message'''
+        return self.message
+
 
 class Body(tk.Frame):
     '''This Body class builds the UI of the program'''
@@ -45,21 +56,21 @@ class Body(tk.Frame):
             self._select_callback(entry)
 
     def insert_contact(self, contact: str):
-        '''insert_contact is when a contact is inserted in the tree selection'''
+        '''insert_contact to tree selection'''
         self._contacts.append(contact)
-        id = len(self._contacts) - 1
-        self._insert_contact_tree(id, contact)
+        a_id = len(self._contacts) - 1
+        self._insert_contact_tree(a_id, contact)
 
-    def _insert_contact_tree(self, id, contact: str):
+    def _insert_contact_tree(self, a_id, contact: str):
         if len(contact) > 25:
             entry = contact[:24] + "..."
-        id = self.posts_tree.insert('', id, id, text=contact)
+        a_id = self.posts_tree.insert('', a_id, a_id, text=contact)
 
-    def insert_user_message(self, message:str):
+    def insert_user_message(self, message: str):
         '''insert_user_message is when a user message is inserted'''
         self.entry_editor.insert(1.0, message + '\n', 'entry-right')
 
-    def insert_contact_message(self, message:str):
+    def insert_contact_message(self, message: str):
         '''insert_contact_message is when a user message is inserted'''
         self.entry_editor.insert(1.0, message + '\n', 'entry-left')
 
@@ -67,7 +78,7 @@ class Body(tk.Frame):
         '''get_text_entry is when you get text from the user'''
         return self.message_editor.get('1.0', 'end').rstrip()
 
-    def set_text_entry(self, text:str):
+    def set_text_entry(self, text: str):
         '''set_text_entry is when you get set text from the user'''
         self.message_editor.delete(1.0, tk.END)
         self.message_editor.insert(1.0, text)
@@ -103,11 +114,14 @@ class Body(tk.Frame):
         self.entry_editor.pack(fill=tk.BOTH, side=tk.LEFT,
                                expand=True, padx=0, pady=0)
 
-        entry_editor_scrollbar = tk.Scrollbar(master=scroll_frame,
-                                              command=self.entry_editor.yview)
+        entry_editor_scrollbar = tk.Scrollbar(
+            master=scroll_frame,
+            command=self.entry_editor.yview
+        )
         self.entry_editor['yscrollcommand'] = entry_editor_scrollbar.set
         entry_editor_scrollbar.pack(fill=tk.Y, side=tk.LEFT,
                                     expand=False, padx=0, pady=0)
+
     def clear_messages(self):
         """Clears all messages from the chat"""
         self.entry_editor.delete(1.0, tk.END)  # Clears the entire content
@@ -163,7 +177,7 @@ class NewContactDialog(tk.simpledialog.Dialog):
 
         self.password_label = tk.Label(frame, width=30, text="Password")
         self.password_label.pack()
-        self.password_entry = tk.Entry(frame, width=30, show = '*')
+        self.password_entry = tk.Entry(frame, width=30, show="*")
         self.password_entry.insert(tk.END, self.pwd)
         self.password_entry.pack()
 
@@ -172,8 +186,7 @@ class NewContactDialog(tk.simpledialog.Dialog):
         # but you will want to add self.password_entry['show'] = '*'
         # such that when the user types, the only thing that appears are
         # * symbols.
-        #self.password...
-
+        # self.password...
 
     def apply(self):
         self.user = self.username_entry.get()
@@ -195,19 +208,19 @@ class MainApp(tk.Frame):
         self.contact_exist = False
         # You must implement this! You must configure and
         # instantiate your DirectMessenger instance after this line.
-        #self.direct_messenger = ... continue!
+        # self.direct_messenger = ... continue!
 
         # After all initialization is complete,
         # call the _draw method to pack the widgets
         # into the root frame
         self._draw()
 
-        #self.root.after(100, self.initialize_user)
-    
+        # self.root.after(100, self.initialize_user)
+
     def send_message(self):
         '''When users send a message'''
         if not self.direct_messenger:
-            self.footer.footer_label.config(text = "no connection!")
+            self.footer.footer_label.config(text="no connection!")
             return
         message = self.body.get_text_entry()
         try:
@@ -222,8 +235,12 @@ class MainApp(tk.Frame):
             else:
                 self.footer.footer_label.config(text="Unable to send message.")
 
-        except Exception as e:
-            self.footer.footer_label.config(text=f"Error: {e}")
+        except ValueError:
+            self.footer.footer_label.config(text="input error")
+        except RuntimeError:
+            self.footer.footer_label.config(text="failed to send")
+        except ConnectionError:
+            self.footer.footer_label.config(text="connection error.")
 
     def add_contact(self):
         ''''When users add a contact'''
@@ -241,8 +258,8 @@ class MainApp(tk.Frame):
                 try:
                     self.notebook.save()
                     self.footer.footer_label.config(text=f"Added {contact}")
-                except Exception as e:
-                    self.footer.footer_label.config(text=f"Error saving: {e}")
+                except OSError:
+                    self.footer.footer_label.config(text="Error saving")
 
     def recipient_selected(self, recipient):
         '''When the user clicks on a recipient'''
@@ -259,7 +276,8 @@ class MainApp(tk.Frame):
                 if msg.sender == self.username:
                     self.body.insert_user_message(f"You: {msg.message}")
                 else:
-                    self.body.insert_contact_message(f"{msg.sender}: {msg.message}")
+                    text = f"{msg.sender}: {msg.message}"
+                    self.body.insert_contact_message(text)
             else:
                 continue
 
@@ -281,8 +299,10 @@ class MainApp(tk.Frame):
                         #self.body.insert_user_message(f"YOU: {msg.message}")
                     #this meand you're receiving a message 
                     self.notebook.save()
-            except Exception as e:
-                self.footer.footer_label.config(text=f"Error retrieving messages: {e}")
+            except ConnectionError:
+                self.footer.footer_label.config(text="network error")
+            except OSError:
+                self.footer.footer_label.config(text="could not get message")
 
     def configure_server(self):
         '''this is when the server is configured and notebook is loaded'''
@@ -297,21 +317,21 @@ class MainApp(tk.Frame):
         nb_path = notebook_dir / f"{self.username}.json"
 
         try:
-            self.direct_messenger = DirectMessenger(self.server, self.username, self.password)
-            #self.direct_messenger.start_client("127.0.0.1", "3001")
-            #print(ud.server)
-            #self.direct_messenger.connect()
-            #self.direct_messenger._authenticate()
+            self.direct_messenger = DirectMessenger(
+                self.server, self.username, self.password
+            )
             self.footer.footer_label.config(text="You've been connected!")
-        except Exception as e:
-            self.footer.footer_label.config(text="There's a connection error")
+        except RuntimeError:
+            self.footer.footer_label.config(text="Server error")
+        except ConnectionError:
+            self.footer.footer_label.config(text="Could not connect")
 
         #if notebook exists, load the contacts into GUI
         if nb_path.exists():
             self.notebook = Notebook(self.username, self.password, self.server)
             self.notebook.load(nb_path)
             for contact in self.notebook.get_contacts():
-                if type(contact) == str:
+                if isinstance(contact, str):
                     self.body.insert_contact(contact)
             self.footer.footer_label.config(text="Loaded contacts!")
 
@@ -341,11 +361,15 @@ class MainApp(tk.Frame):
                         #add message to me locally 
                         self.notebook.add_message(msg)
                         self.notebook.save()
-                        if (msg.sender not in self.body._contacts) and (msg.sender not in self.notebook.contacts) and (msg.sender != self.username):
+                        if ((msg.sender not in self.body._contacts) and
+                            (msg.sender not in self.notebook.contacts) and
+                                (msg.sender != self.username)):
                             self.body.insert_contact(msg.sender)
                             self.notebook.add_contact(msg.sender)
-            except Exception as e:
-                print(f"error {e}")      
+            except ConnectionError:
+                self.footer.footer_label.config(text="no connection.")
+            except RuntimeError:
+                print("Error getting messages")
         self.after(3000, self.check_new)
 
     def _draw(self):
@@ -361,18 +385,29 @@ class MainApp(tk.Frame):
 
         settings_file = tk.Menu(menu_bar)
         menu_bar.add_cascade(menu=settings_file, label='Settings')
-        settings_file.add_command(label='Add Contact',
-                                command=self.add_contact)
-        settings_file.add_command(label='Configure DS Server',
-                                command=self.configure_server)
+        settings_file.add_command(
+            label='Add Contact',
+            command=self.add_contact
+        )
+        settings_file.add_command(
+            label='Configure DS Server',
+            command=self.configure_server
+        )
 
         # The Body and Footer classes must be initialized and
         # packed into the root window.
-        self.body = Body(self.root,
-                        recipient_selected_callback=self.recipient_selected)
+        self.body = Body(
+            self.root,
+            recipient_selected_callback=self.recipient_selected
+        )
         self.body.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-        self.footer = Footer(self.root, send_callback=self.send_message)
-        self.footer.pack(fill=tk.BOTH, side=tk.BOTTOM)
+        self.footer = Footer(
+            self.root,
+            send_callback=self.send_message
+        )
+        self.footer.pack(
+            fill=tk.BOTH, side=tk.BOTTOM
+        )
 
 
 if __name__ == "__main__":
@@ -405,8 +440,8 @@ if __name__ == "__main__":
     # behavior of the window changes.
     main.update()
     main.minsize(main.winfo_width(), main.winfo_height())
-    id = main.after(2000, app.check_new)
-    print(id)
+    time_id = main.after(2000, app.check_new)
+    print(time_id)
     # And finally, start up the event loop for the program (you can find
     # more on this in lectures of week 9 and 10).
     main.mainloop()
